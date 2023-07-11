@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>語音辨識</title>
+</head>
+<body>
+    <h1>語音辨識</h1>
+    <button id="start">開始</button>
+    <button id="stop">停止</button>
+    <div id="result">辨識結果將顯示於此</div>
+
+    <script>
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = new SpeechRecognition();
+
+    recognition.lang = 'ZH-TW';
+    recognition.interimResults = false;
+
+    document.querySelector('#start').onclick = function() {
+        recognition.start();
+    };
+
+    document.querySelector('#stop').onclick = function() {
+        recognition.stop();
+    };
+
+    recognition.onresult = function(event) {
+        var speechToText = event.results[0][0].transcript;
+        document.querySelector('#result').innerText = '辨識結果：' + speechToText;
+    };
+    </script>
+</body>
+</html>

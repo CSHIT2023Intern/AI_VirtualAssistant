@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenAI Chat with Voice Recognition</title>
+    <style>
+        body {
+            background-size: cover;
+            background-repeat: no-repeat;
+            text-align: center;
+        }
+        h1 {
+            color: #360ba3;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+    <h1>OpenAI Chat with Voice Recognition</h1>
+    <button id="start">開始</button>
+    <button id="stop">停止</button>
+    <div id="result">辨識結果將顯示於此</div>
+    <div id="api-key-container">
+        <input type="text" id="api-key-input" placeholder="輸入您的 OpenAI API key">
+        <button id="api-key-submit">Submit</button>
+    </div>
+    <textarea id="prompt" placeholder="Enter your question here"></textarea>
+    <button id="submit" disabled>Ask</button>
+    <div id="response"></div>
+
+    <script>
+        // Speech Recognition
+        var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        var recognition = new SpeechRecognition();
+        recognition.lang = 'zh-TW';
+        recognition.interimResults = false;
+        
+        document.querySelector('#start').onclick = function() {
+            recognition.start();
+        };
+        document.querySelector('#stop').onclick = function() {
+            recognition.stop();
+        };
+        recognition.onresult = function(event) {
+            var speechToText = event.results[0][0].transcript;
+            document.querySelector('#result').innerText = '辨識結果：' + speechToText;
+            document.querySelector('#prompt').value = speechToText;
+        };
+        
+        // OpenAI Chat
+        $(document).ready(function() {
+            var apiKey = localStorage.getItem('apiKey');  
+
+            if (!apiKey) {
+                $("#api-key-container").show();  
+            } else {
+                $("#submit").removeAttr("disabled");  
+            }
+
+            $("#api-key-submit").click(function() {
+                apiKey = $("#api-key-input").val();
+                if (apiKey) {
+                    localStorage.setItem('apiKey', apiKey);  
+                    $("#api-key-container").hide();  
+                    $("#submit").removeAttr("disabled");  
+                }
+            });
+
+            $("#submit").click(function() {
+                var promptText = $("#prompt").val();
+                if (apiKey) {
+                    $.ajax({
+                        url: '/api/ask',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            "prompt": promptText
+                        }),
+                        beforeSend: function(request) {
+                            request.setRequestHeader("Authorization", apiKey);
+                        },
+                        success: function(data) {
+                            if(data.error) {
+                                $("#response").text(data.error);
+                            } else {
+                                $("#response").text(data);
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
