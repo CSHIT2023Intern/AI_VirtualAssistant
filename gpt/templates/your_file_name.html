@@ -104,6 +104,9 @@
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk/dist/microsoft.cognitiveservices.speech.sdk.bundle.js"></script>
+
+    <audio id="speech-audio" controls style="display: none;"></audio>
+
 </head>
 <body>
     <h1>OpenAI 語音識別聊天</h1>
@@ -128,7 +131,70 @@
 
     <div id="result"></div>
     <div id="recognizing">辨識中...</div>
+
+
+    <script>
+     
     
+        // Set your Microsoft Azure Text-to-Speech API key and region here
+        var subscriptionKey = 'SPEECH_KEY';
+        var region = 'SPEECH_REGION';
+    
+        // Create Microsoft Azure Text-to-Speech config
+        var speechConfig = speechsdk.SpeechConfig.fromSubscription(subscriptionKey, region);
+        var synthesizer = new speechsdk.SpeechSynthesizer(speechConfig);
+    
+        $(document).ready(function() {
+            // ... Your existing OpenAI chat code ...
+    
+            $("#submit").click(function() {
+                var promptText = $("#prompt").val();
+                if (openAiApiKey) {
+                    var chatWindow = $("#chat-window");
+                    var loadingIndicator = $("#loading-indicator");
+    
+                    disableChat();
+                    loadingIndicator.show();
+    
+                    $.ajax({
+                        url: openAiApiEndpoint,
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            "prompt": promptText
+                        }),
+                        beforeSend: function(request) {
+                            request.setRequestHeader("Authorization", openAiApiKey);
+                        },
+                        success: function(data) {
+                            chatWindow.append("<p class='chat-message'><strong>您:</strong> " + promptText + "</p>");
+                            chatWindow.scrollTop(chatWindow[0].scrollHeight);
+                            chatWindow.append("<p class='chat-message'><strong>助手:</strong> " + data.response + "</p>");
+                            chatWindow.scrollTop(chatWindow[0].scrollHeight);
+    
+                            // Use Microsoft Azure Text-to-Speech API to read aloud the assistant's response
+                            synthesizer.speakTextAsync(data.response);
+    
+                            enableChat();
+                        },
+                        error: function(error) {
+                            showError("Error: " + error);
+                            enableChat();
+                        },
+                        complete: function() {
+                            loadingIndicator.hide();
+                        }
+                    });
+    
+                    // Clear the input box
+                    document.querySelector('#prompt').value = "";
+                }
+            });
+    
+            // ... Your other code ...
+        });
+    </script>
+
 
     <script>
         // Speech Recognition
@@ -199,7 +265,6 @@
     }
 });
 
-
             $("#api-key-reset").click(function() {
                 localStorage.removeItem('apiKey');
                 $("#api-key-input").val("");
@@ -228,23 +293,25 @@
                             request.setRequestHeader("Authorization", apiKey);
                         },
                         success: function(data) {
-                            if (data.error && data.error.includes("Invalid API key")) {
-                                showError("Invalid API key. Please enter a valid key.");
-                                showApiKeyInput();
-                                disableChat();
-                            } else if (data.error) {
-                                showError("Error: " + data.error);
-                                enableChat();
-                            } else {
-                                chatWindow.append("<p class='chat-message'><strong>您:</strong> " + promptText + "</p>");
-                                chatWindow.append("<p class='chat-message'><strong>助手:</strong> " + data + "</p>");
-                                chatWindow.scrollTop(chatWindow[0].scrollHeight);
-                                enableChat();
+    if (data.error && data.error.includes("Invalid API key")) {
+        showError("Invalid API key. Please enter a valid key.");
+        showApiKeyInput();
+        disableChat();
+    } else if (data.error) {
+        showError("Error: " + data.error);
+        enableChat();
+    } else {
+        var assistant_reply = data.response; // Assuming the response is stored in 'response' key
 
-                                // Speak the AI's response
-                                var utterance = new SpeechSynthesisUtterance(data);
-                                utterance.lang = 'zh-TW';
-                                speechSynthesis.speak(utterance);
+        // Display both user's question and assistant's response in the chat window
+        var chatWindow = $("#chat-window");
+        chatWindow.append("<p class='chat-message'><strong>您:</strong> " + promptText + "</p>");
+        chatWindow.append("<p class='chat-message'><strong>助手:</strong> " + assistant_reply + "</p>");
+        chatWindow.scrollTop(chatWindow[0].scrollHeight);
+
+        // Use Microsoft Azure Text-to-Speech API to read aloud the assistant's response
+     
+                                enableChat();
                             }
                         },
                         complete: function() {
@@ -253,7 +320,8 @@
                     });
                 }
             });
-
+            
+        
             function showApiKeyInput() {
                 $("#api-key-container").show();
                 $("#submit").attr("disabled", true);
@@ -278,7 +346,13 @@
                 var chatWindow = $("#chat-window");
                 chatWindow.append("<p class='chat-message'><strong>Error:</strong> " + message + "</p>");
                 chatWindow.scrollTop(chatWindow[0].scrollHeight);
-            }
+        }
+
+        // 新增語音合成函數
+        function playSpeech(text) {
+            var utterance = new SpeechSynthesisUtterance(text);
+            speechSynthesis.speak(utterance);
+        }
         });
     </script>
 </body>

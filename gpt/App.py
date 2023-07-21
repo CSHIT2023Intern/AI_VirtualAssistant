@@ -14,6 +14,34 @@ openai.api_base = "https://cshitinternopenai.openai.azure.com/"
 openai.api_version = "2023-03-15-preview"
 openai.api_key  =  "0be4adcd512d4b09b7e44d50325f4bf9"
 
+def text_to_speech(text):
+    subscription_key = os.environ.get('SPEECH_KEY')        #需在命令提示字元設定環境變數 setx SPEECH_KEY "c9d3e6d440214af3bc175d4c31809a44"
+    region = os.environ.get('SPEECH_REGION')               #需在命令提示字元設定環境變數setx SPEECH_REGION "eastasia"
+
+    if not subscription_key or not region:
+        return None
+
+    try:
+        speech_config = speechsdk.SpeechConfig(
+            subscription=subscription_key,
+            region=region
+        )
+
+        speech_config.speech_synthesis_voice_name = 'zh-CN-XiaoxiaoNeural'
+        audio_config = speechsdk.audio.AudioOutputConfig(use_default_speaker=True)
+
+        synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+        result = synthesizer.speak_text_async(text).get()
+
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            return result.audio_data_stream.get_url()
+        else:
+            return None
+
+    except Exception as e:
+        print("Error during speech synthesis:", e)
+        return None
+
 @app.route('/')
 def home():
     return render_template('your_file_name.html')
@@ -29,6 +57,7 @@ def ask():
         return jsonify({'error': 'Invalid request. Missing API key.'})
 
     if prompt:
+        
         try:
             # 從 memory 中取出先前的訊息
             previous_messages = memory[session_id]
@@ -46,7 +75,12 @@ def ask():
             memory[session_id].append({"role": "user", "content": prompt})
             memory[session_id].append({"role": "assistant", "content": response['choices'][0]['message']['content'].strip()})
 
-            return jsonify(response['choices'][0]['message']['content'].strip())
+            # 使用 Azure Text-to-Speech API 進行語音合成並獲取音頻 URL
+            assistant_reply = response['choices'][0]['message']['content'].strip()
+            audio_url = text_to_speech(assistant_reply)
+
+            # 將音頻 URL 返回給前端
+            return jsonify({'response': assistant_reply, 'audio_url': audio_url})
         except openai.error.AuthenticationError:
             return jsonify({'error': 'Invalid API key.'})
     else:
@@ -54,8 +88,8 @@ def ask():
 
 @app.route('/speech-to-text', methods=['POST'])
 def speech_to_text():
-    subscription_key = os.environ.get('SPEECH_KEY')  #利用環境變數的方式收SPEECH_KEY。
-    region = os.environ.get('SPEECH_REGION')     #利用環境變數的方式收SPEECH_KEY。
+    subscription_key = os.environ.get('SPEECH_KEY')
+    region = os.environ.get('SPEECH_REGION')
 
     speech_config = speechsdk.SpeechConfig(
         subscription=subscription_key,
@@ -74,7 +108,7 @@ def speech_to_text():
     if result.reason == speechsdk.ResultReason.RecognizedSpeech:
         return jsonify({'transcript': result.text})
     elif result.reason == speechsdk.ResultReason.NoMatch:
-        return jsonify({'transcript': '沒有收到講話的語音'})
+        return jsonify({'transcript': 'No speech detected'})
     elif result.reason == speechsdk.ResultReason.Canceled:
         return jsonify({'transcript': 'Speech recognition canceled: {}'.format(result.cancellation_details.reason)})
     else:
