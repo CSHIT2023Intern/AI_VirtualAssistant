@@ -105,7 +105,8 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk/dist/microsoft.cognitiveservices.speech.sdk.bundle.js"></script>
 
-    <audio id="speech-audio" controls style="display: none;"></audio>
+    <audio id="output-audio" controlsstyle="display: none;"></audio>
+
 
 </head>
 <body>
@@ -114,11 +115,12 @@
         <input type="text" id="api-key-input" placeholder="輸入您的 OpenAI API key">
         <button id="api-key-submit">送出</button>
         <button id="api-key-reset">重新輸入金鑰</button>
-    </div>
+        
+    </div> 
+    <div id="loading-indicator">傳輸中請稍候...</div>
     <div id="chat-window">
         <!-- 聊天訊息內容 -->
         <!-- 傳輸中-->
-        <div id="loading-indicator">傳輸中請稍候...</div>
     </div>
 
     <div class="container">
@@ -132,113 +134,45 @@
     <div id="result"></div>
     <div id="recognizing">辨識中...</div>
 
+    <audio id="output-audio" controls style="display: none;"></audio>
 
     <script>
-     
-    
-        // Set your Microsoft Azure Text-to-Speech API key and region here
-        var subscriptionKey = 'SPEECH_KEY';
-        var region = 'SPEECH_REGION';
-    
-        // Create Microsoft Azure Text-to-Speech config
-        var speechConfig = speechsdk.SpeechConfig.fromSubscription(subscriptionKey, region);
-        var synthesizer = new speechsdk.SpeechSynthesizer(speechConfig);
-    
-        $(document).ready(function() {
-            // ... Your existing OpenAI chat code ...
-    
-            $("#submit").click(function() {
-                var promptText = $("#prompt").val();
-                if (openAiApiKey) {
-                    var chatWindow = $("#chat-window");
-                    var loadingIndicator = $("#loading-indicator");
-    
-                    disableChat();
-                    loadingIndicator.show();
-    
-                    $.ajax({
-                        url: openAiApiEndpoint,
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            "prompt": promptText
-                        }),
-                        beforeSend: function(request) {
-                            request.setRequestHeader("Authorization", openAiApiKey);
-                        },
-                        success: function(data) {
-                            chatWindow.append("<p class='chat-message'><strong>您:</strong> " + promptText + "</p>");
-                            chatWindow.scrollTop(chatWindow[0].scrollHeight);
-                            chatWindow.append("<p class='chat-message'><strong>助手:</strong> " + data.response + "</p>");
-                            chatWindow.scrollTop(chatWindow[0].scrollHeight);
-    
-                            // Use Microsoft Azure Text-to-Speech API to read aloud the assistant's response
-                            synthesizer.speakTextAsync(data.response);
-    
-                            enableChat();
-                        },
-                        error: function(error) {
-                            showError("Error: " + error);
-                            enableChat();
-                        },
-                        complete: function() {
-                            loadingIndicator.hide();
-                        }
-                    });
-    
-                    // Clear the input box
-                    document.querySelector('#prompt').value = "";
-                }
-            });
-    
-            // ... Your other code ...
-        });
-    </script>
-
-
-    <script>
-        // Speech Recognition
-        var apiKey = 'SPEECH_KEY';
-        var region = 'SPEECH_REGION';
-
-        var recognizer;
-
-        document.querySelector('#start').onclick = function() {
-            startSpeechRecognition();
-        };
-
-        document.querySelector('#stop').onclick = function() {
-            stopSpeechRecognition();
-        };
-
-        function startSpeechRecognition() {
-            $('#result').text('處理中...');
-
-            $.ajax({
-                url: '/speech-to-text',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({}),
-                success: function(data) {
-                    var speechToText = data.transcript;
-                    document.querySelector('#result').innerText = '辨識結果：' + speechToText;
-                    document.querySelector('#prompt').value = speechToText;
-                },
-                error: function() {
-                    $('#result').text('語音識別期間發生錯誤');
-                }
-            });
+   function playAssistantAudio(event) {
+            var audioUrl = event.target.getAttribute("data-audio");
+            if (audioUrl) {
+                synthesizeTextToSpeech(audioUrl, null); // Use null for voice_name
+            }
         }
-
-        function stopSpeechRecognition() {
-            // 停止語音識別的相關程式碼
+    // Attach the click event to all speaker icons with the class "speaker-icon"
+    $(document).on("click", ".speaker-icon", playAssistantAudio);
+    // Add the 'synthesizeTextToSpeech' function here
+    function synthesizeTextToSpeech(text, voice_name) {
+    $.ajax({
+        url: '/synthesize_audio', // 修改为新的路由
+        type: 'POST',
+        data: { 'text': text, 'voice_name': voice_name },
+        success: function(data) {
+            if (data.audio_url) {
+                var audioPlayer = document.getElementById("output-audio"); // 修改为 output-audio
+                audioPlayer.src = data.audio_url;
+                audioPlayer.load();
+                audioPlayer.play();
+                // ... 其他部分不变 ...
+            } else {
+                console.error('Error: Audio URL not found in the response.');
+            }
+        },
+        error: function() {
+            console.error('Error during text-to-speech synthesis.');
         }
+    });
+}
 
-  
     // OpenAI Chat
     $(document).ready(function() {
-        // var apiKey = localStorage.getItem('apiKey'); // remove this line
-        hideApiKeyInput(); // Add this line
+        var openAiApiKey = 'openai_api_key';
+        var openAiApiEndpoint = 'openai_api_base/api/ask';
+        hideApiKeyInput(); 
         enableChat();
 
 
@@ -257,13 +191,14 @@
                 }
             });
             document.querySelector('#prompt').addEventListener('keydown', function(e) {
-    if (e.keyCode === 13) {
-        e.preventDefault();
-        if (!$("#submit").is(":disabled")) {
+            if (e.keyCode === 13) {
+            e.preventDefault();
+            if (!$("#submit").is(":disabled")) {
             $("#submit").click();
         }
     }
 });
+
 
             $("#api-key-reset").click(function() {
                 localStorage.removeItem('apiKey');
@@ -274,54 +209,58 @@
             });
 
             $("#submit").click(function() {
-                var promptText = $("#prompt").val();
-                if (apiKey) {
-                    var chatWindow = $("#chat-window");
-                    var loadingIndicator = $("#loading-indicator");
-
-                    disableChat();
-                    loadingIndicator.show();
-
-                    $.ajax({
-                        url: '/api/ask',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            "prompt": promptText
-                        }),
-                        beforeSend: function(request) {
-                            request.setRequestHeader("Authorization", apiKey);
-                        },
-                        success: function(data) {
-    if (data.error && data.error.includes("Invalid API key")) {
-        showError("Invalid API key. Please enter a valid key.");
-        showApiKeyInput();
-        disableChat();
-    } else if (data.error) {
-        showError("Error: " + data.error);
-        enableChat();
-    } else {
-        var assistant_reply = data.response; // Assuming the response is stored in 'response' key
-
-        // Display both user's question and assistant's response in the chat window
+    var promptText = $("#prompt").val();
+    var voiceName = $("#voice-select").val(); // 獲取所選的語音樣式
+    if (apiKey) {
         var chatWindow = $("#chat-window");
-        chatWindow.append("<p class='chat-message'><strong>您:</strong> " + promptText + "</p>");
-        chatWindow.append("<p class='chat-message'><strong>助手:</strong> " + assistant_reply + "</p>");
-        chatWindow.scrollTop(chatWindow[0].scrollHeight);
+        var loadingIndicator = $("#loading-indicator");
 
-        // Use Microsoft Azure Text-to-Speech API to read aloud the assistant's response
-     
-                                enableChat();
-                            }
-                        },
-                        complete: function() {
-                            loadingIndicator.hide();
-                        }
-                    });
+        disableChat();
+        loadingIndicator.show();
+
+        $.ajax({
+            url: '/api/ask',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                "prompt": promptText
+            }),
+            beforeSend: function(request) {
+                request.setRequestHeader("Authorization", apiKey);
+            },
+            success: function(data) {
+                if (data.error && data.error.includes("Invalid API key")) {
+                    showError("Invalid API key. Please enter a valid key.");
+                    showApiKeyInput();
+                    disableChat();
+                } else if (data.error) {
+                    showError("Error: " + data.error);
+                    enableChat();
+                } else {
+                    var assistant_reply = data.response; // Assuming the response is stored in 'response' key
+
+                    // Display both user's question and assistant's response in the chat window
+                    var chatWindow = $("#chat-window");
+                    chatWindow.append("<p class='chat-message'><strong>您:</strong> " + promptText + "</p>");
+                    chatWindow.append("<p class='chat-message'><strong>助手:</strong> " + assistant_reply + "</p>");
+                    chatWindow.scrollTop(chatWindow[0].scrollHeight);
+
+                    // Synthesize assistant's response to speech
+                    synthesizeTextToSpeech(assistant_reply, voiceName);
+
+                    enableChat();
                 }
-            });
+            },
+            complete: function() {
+                loadingIndicator.hide();
+            }
+        });
+    }
+});
+
+    // Attach the click event to all speaker icons with the class "speaker-icon"
+    $(document).on("click", ".speaker-icon", playAssistantAudio);
             
-        
             function showApiKeyInput() {
                 $("#api-key-container").show();
                 $("#submit").attr("disabled", true);
@@ -347,13 +286,69 @@
                 chatWindow.append("<p class='chat-message'><strong>Error:</strong> " + message + "</p>");
                 chatWindow.scrollTop(chatWindow[0].scrollHeight);
         }
-
-        // 新增語音合成函數
-        function playSpeech(text) {
-            var utterance = new SpeechSynthesisUtterance(text);
-            speechSynthesis.speak(utterance);
-        }
         });
     </script>
+
+<script>
+    var apiKey = 'speech_key';
+    var region = 'speech_region';
+    var recognizer;
+
+    document.querySelector('#start').onclick = function() {
+        startSpeechRecognition();
+    };
+
+    document.querySelector('#stop').onclick = function() {
+        stopSpeechRecognition();
+    };
+
+    function startSpeechRecognition() {
+        $('#result').text('處理中...');
+
+        $.ajax({
+            url: '/speech-to-text',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({}),
+            success: function(data) {
+                var speechToText = data.transcript;
+                document.querySelector('#result').innerText = '辨識結果：' + speechToText;
+                document.querySelector('#prompt').value = speechToText;
+
+                // Trigger text-to-speech synthesis explicitly after speech recognition
+                var voiceName = $("#voice-select").val();
+                synthesizeTextToSpeech(speechToText, voiceName);
+            },
+            error: function() {
+                $('#result').text('語音識別期間發生錯誤');
+            }
+        });
+    }
+
+    function stopSpeechRecognition() {
+        // ... Your existing code for stopping speech recognition ...
+    }
+
+    function synthesizeTextToSpeech(text, voice_name) {
+        $.ajax({
+            url: '/synthesize_audio',
+            type: 'POST',
+            data: { 'text': text, 'voice_name': voice_name },
+            success: function(data) {
+                if (data.audio_url) {
+                    var audioPlayer = document.getElementById("output-audio");
+                    audioPlayer.src = data.audio_url;
+                    audioPlayer.load();
+                    audioPlayer.play();
+                } else {
+                    console.error('Error: Audio URL not found in the response.');
+                }
+            },
+            error: function() {
+                console.error('Error during text-to-speech synthesis.');
+            }
+        });
+    }
+</script>
 </body>
 </html>
