@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>Azure Text to Speech</h1>
+
+<p>Enter some text:</p>
+
+<textarea id="text" rows="4" cols="50"></textarea>
+
+<button onclick="synthesize()">Synthesize</button>
+
+<audio id="audio" controls></audio>
+
+<script>
+async function synthesize() {
+    const text = document.getElementById('text').value;
+    const response = await fetch('http://localhost:3000/synthesize', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: text })
+    });
+    const data = await response.json();
+
+    // 檢查音頻文件是否已經生成
+    let checkAudioExist = setInterval(async function() {
+        const checkResponse = await fetch(data.audioFile);
+        if (checkResponse.ok) {
+            clearInterval(checkAudioExist);
+            const audio = document.getElementById('audio');
+            audio.src = data.audioFile;
+            audio.play();
+        }
+    }, 1000);
+}
+</script>
+
+</body>
+</html>
