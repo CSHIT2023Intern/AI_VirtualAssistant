@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ChatGPT 語音識別聊天</title>
+
+
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://aka.ms/csspeech/speech.sdk.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk/dist/microsoft.cognitiveservices.speech.sdk.bundle.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" type="text/css"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+    <title>ChatGPT</title>
+    <audio id="output-audio" controls style="display: none;"></audio>
+</head>
+<body>
+    
+    <div class="header">
+        <h3><div class="info">
+              <!-- 使用 Font Awesome 的 LINE 圖示 -->
+    <i id="line-icon" class="fab fa-line" style="font-size:48px;color:green"></i>
+<!-- QR Code 圖像 -->
+<img id="qr-code" src="static\messageImage.png" alt="QR Code" />
+
+<script>
+    // 取得 line 圖示元素
+    var lineIcon = document.getElementById('line-icon');
+    // 取得 QR Code 圖像元素
+    var qrCode = document.getElementById('qr-code');
+
+    // 當滑鼠懸停在 line 圖示上時顯示 QR Code 圖像
+    lineIcon.addEventListener('mouseover', function() {
+        qrCode.style.display = 'block';
+    });
+
+    // 當滑鼠離開 line 圖示時隱藏 QR Code 圖像
+    lineIcon.addEventListener('mouseout', function() {
+        qrCode.style.display = 'none';
+    });
+</script>
+    
+            <a href="https://www.csh.org.tw/" target="_blank">
+                
+                中山醫學大學附設醫院 AI  人工智慧
+                        </a>
+            </div>
+        </h3>
+            
+        </div>
+            <button id="get-conversations" class="btn btn-primary" data-toggle="modal" data-target="#conversationsModal">查詢對話歷史</button>
+
+    <!-- 對話紀錄模態視窗 -->
+    <div class="modal fade" id="conversationsModal" tabindex="-1" role="dialog" aria-labelledby="conversationsModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="conversationsModalLabel">對話紀錄</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="conversations"></div>
+                </div>
+                <div class="modal-footer">
+                    <nav>
+                        <ul class="pagination" id="conversations-pagination"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+
+
+<script>
+var pageSize = 5;  // 顯示每頁的對話數量
+
+$("#get-conversations").click(function() {
+    $.getJSON("/api/conversations", function(data) {
+        var conversations = data.conversations;
+        var pageCount = Math.ceil(conversations.length / pageSize);  // 計算總頁數
+
+        $("#conversations").empty();
+        $("#conversations-pagination").empty();
+
+        // 為每一頁添加分頁按鈕
+        for (var i = 0; i < pageCount; i++) {
+            var btn = $('<li class="page-item"><a class="page-link" href="#">' + (i + 1) + '</a></li>');
+            $("#conversations-pagination").append(btn);
+        }
+
+        // 處理分頁按鈕的點擊事件
+        $("#conversations-pagination .page-item").first().addClass('active');
+        $("#conversations-pagination .page-link").click(function() {
+            var pageIndex = $(this).html() - 1;  // 獲取頁碼
+            $("#conversations-pagination .page-item").removeClass('active');
+            $(this).parent().addClass('active');
+
+            $("#conversations").empty();
+            // 顯示當前頁的對話
+            for (var i = pageIndex * pageSize; i < (pageIndex + 1) * pageSize && i < conversations.length; i++) {
+                var para = $("<p>" + conversations[i][1] + " : " + conversations[i][2] + "</p>");
+                $("#conversations").append(para);
+            }
+        });
+
+        // 默認顯示第一頁的對話
+        for (var i = 0; i < pageSize && i < conversations.length; i++) {
+            var para = $("<p>" + conversations[i][1] + " : " + conversations[i][2] + "</p>");
+            $("#conversations").append(para);
+        }
+    });
+});
+</script>
+<button id="registration-info-btn"class="btn btn-primary" data-toggle="modal" data-target="">科別醫師查詢</button>
+
+<!-- Dialog element for the popup -->
+<dialog id="registration-info-dialog">
+    <p>請選擇要查詢的科別：
+<br><br>
+<button class="department-btn" data-department="骨科">骨科</button>     
+<button class="department-btn" data-department="婦癌科">婦癌科</button>
+<button class="department-btn" data-department="感染科">感染科</button>  
+<br><br>
+<button class="department-btn" data-department="一般內科">一般內科</button>
+<button class="department-btn" data-department="內分泌科">內分泌科</button>
+<button class="department-btn" data-department="腫瘤內科">腫瘤內科</button>
+<button class="department-btn" data-department="腎臟內科">腎臟內科</button>
+<button class="department-btn" data-department="一般外科">一般外科</button>
+<button class="department-btn" data-department="整形外科">整形外科</button>
+<button class="department-btn" data-department="小兒外科">小兒外科</button>
+<button class="department-btn" data-department="心臟外科">心臟外科</button>
+<button class="department-btn" data-department="神經外科">神經外科</button>
+<button class="department-btn" data-department="胸腔外科">胸腔外科</button>
+<button class="department-btn" data-department="新生兒科">新生兒科</button>
+<br><br>
+<button class="department-btn" data-department="肝膽腸胃科">肝膽腸胃科</button>
+<button class="department-btn" data-department="血液腫瘤科">血液腫瘤科</button>
+<button class="department-btn" data-department="生殖醫學科">生殖醫學科</button>
+<button class="department-btn" data-department="海扶刀中心">海扶刀中心</button>
+<button class="department-btn" data-department="兒童腎臟科">兒童腎臟科</button>
+<button class="department-btn" data-department="兒童神經科">兒童神經科</button>
+<button class="department-btn" data-department="兒童腸胃科">兒童腸胃科</button>
+<button class="department-btn" data-department="兒童感染科">兒童感染科</button>
+<button class="department-btn" data-department="兒童心臟科">兒童心臟科</button>
+<button class="department-btn" data-department="兒童急診科">兒童急診科</button>
+<br><br>
+<button class="department-btn" data-department="肝膽消化外科">肝膽消化外科</button>
+<button class="department-btn" data-department="大腸肛門外科">大腸肛門外科</button>
+<br><br>
+<button class="department-btn" data-department="乳房甲狀腺外科">乳房甲狀腺外科</button>
+<button class="department-btn" data-department="過敏免疫風濕科">過敏免疫風濕科</button>
+<button class="department-btn" data-department="產科高危險妊娠">產科高危險妊娠</button>
+<button class="department-btn" data-department="兒童血液腫瘤科">兒童血液腫瘤科</button>
+<br><br>
+<button class="department-btn" data-department="心臟內科胸腔內科">心臟內科胸腔內科</button>
+<br><br>
+<button class="department-btn" data-department="內分泌及遺傳代謝科">內分泌及遺傳代謝科</button>
+<button class="department-btn" data-department="兒童過敏免疫風濕科">兒童過敏免疫風濕科</button>
+<br><br>
+<button class="department-btn" data-department="婦女泌尿暨骨盆重建科">婦女泌尿暨骨盆重建科</button>
+<button class="department-btn" data-department="腹腔鏡暨微創手術專科">腹腔鏡暨微創手術專科</button>
+        <!-- Add the rest of the department buttons here -->
+
+        <br><br>祝您今天看診愉快!!!
+    </p>
+    <button id="close-dialog-btn">關閉</button>
+</dialog>
+
+   
+
+    <div id="api-key-container">
+        <input type="text" id="api-key-input" placeholder="輸入您的 OpenAI API key">
+        <button id="api-key-submit">送出</button>
+        <button id="api-key-reset">重新輸入金鑰</button>
+        
+    </div> 
+    <div id="chat-window">
+        <!-- 聊天訊息內容 -->
+        <!-- 傳輸中-->    
+
+    </div>
+
+    <div class="input-container">
+  <!-- 使用 Font Awesome 圖示 -->
+
+<!-- 麥克風 -->
+        <button id="start"class="fa-solid fa-microphone"></button>
+        <button id="stop" class="fas fa-stop"></button>
+
+        <input id="prompt"p style="color: #ff0000;" placeholder="輸入詢問訊息"type="text"> </p>
+<!-- 送出 -->
+        <button id="submit"class="fa-solid fa-paper-plane">
+<!-- 清除 -->
+        <button id="clear-input"class="fa-solid fa-trash-can"></button>
+    </div>
+
+
+    
+
+    <div id="result"></div>
+    <div id="recognizing">辨識中...</div>
+    
+
+    <audio id="output-audio" controls style="display: none;"></audio>
+
+    
+
+<!-- 掛號資訊的開啟 or 關閉 ----------------------------------------------------------------------------------------------->
+
+    <script>
+   $(document).ready(function() {
+    // Existing code for OpenAI Chat and Speech Recognition ...
+
+    // Function to show the registration department dialog
+    $("#registration-info-btn").click(function() {
+        var dialog = document.getElementById("registration-info-dialog");
+        dialog.showModal();
+    });
+
+    // Function to close the registration department dialog
+    $("#close-dialog-btn").click(function() {
+        var dialog = document.getElementById("registration-info-dialog");
+        dialog.close();
+    });
+
+    // Function to handle when a department button is clicked
+    $(".department-btn").click(function() {
+        var department = $(this).data("department");
+        var promptText = "查詢" + department +"的醫師";
+        $("#prompt").val(promptText); // Set the prompt input with the selected department
+        $("#submit").click(); // Trigger the submit button to send the prompt for processing
+        var dialog = document.getElementById("registration-info-dialog");
+        dialog.close(); // Close the dialog after the department is selected
+    });
+
+    // Rest of the existing code for OpenAI Chat and Speech Recognition ...
+});
+    </script>
+
+
+<!-- 文本轉語音---------------------------------------------------------------------------------------------------------------------- -->
+<!-- 包含 Speech SDK -->
+<script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    var synthesizer;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        
+        // 用 AJAX 請求從後端獲得設定
+        $.get('/getSpeechConfig', function(data) {
+            
+            // 使用從後端取得的資料初始化 Microsoft Speech SDK
+            var subscriptionKey = data.apiKey;
+            var serviceRegion = data.region;
+            
+            var speechConfig = SpeechSDK.SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
+            speechConfig.speechSynthesisLanguage = "zh-TW"; 
+            synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig);
+
+        });
+
+    });
+
+    function synthesizeTextToSpeech(inputText) {
+        synthesizer.speakTextAsync(
+            inputText,
+            function (result) {
+                if (result.reason === SpeechSDK.ResultReason.Canceled) {
+                    console.error('Error: ' + result.errorDetails);
+                }
+            },
+            function (err) {
+                console.error('Error during text-to-speech synthesis: ' + err);
+            }
+        );
+    }
+
+    function generateChatbotResponse(responseText) {
+        var chatWindow = $("#chat-window");
+        var chatMessage = $("<p class='chat-message assistant-message'><span class='icon-bot'><i class='fa-solid fa-cloud'></i></i><strong></strong></span><span class='message-text'></span></p>");
+        chatMessage.find('.message-text').text(responseText);
+        chatWindow.append(chatMessage);
+        chatWindow.scrollTop(chatWindow[0].scrollHeight);
+
+        synthesizeTextToSpeech(responseText);
+    }
+
+    function getChatbotReply(userInput) {
+        var chatbotResponse = "這是 chatbot 的響應";
+        generateChatbotResponse(chatbotResponse);
+    }  
+
+
+
+// Open AI chat---------------------------------------------------------------------------------------------------------------------------
+$(document).ready(function() {
+    var openAiApiKey = 'openai_api_key'; // OpenAI API金鑰
+    var openAiApiEndpoint = 'openai_api_base/api/ask'; // OpenAI API端點
+    hideApiKeyInput(); // 隱藏API金鑰輸入欄
+    enableChat(); // 啟用聊天功能
+
+    $("#clear-input").click(function() {
+        $("#prompt").val(""); // 清空輸入框內容
+    });
+
+    $("#api-key-submit").click(function() {
+        apiKey = $("#api-key-input").val(); // 獲取並設置API金鑰
+        if (apiKey) {
+            if ($("#save-api-key").is(":checked")) {
+                localStorage.setItem('apiKey', apiKey); // 將API金鑰保存到本地存儲
+            }
+            hideApiKeyInput();
+            enableChat();
+        }
+    });
+    document.querySelector('#prompt').addEventListener('keydown', function(e) {
+        if (e.keyCode === 13) {
+            e.preventDefault();
+            if (!$("#submit").is(":disabled")) {
+                $("#submit").click(); // 按下Enter鍵觸發提交按鈕
+            }
+        }
+    });
+
+    $("#api-key-reset").click(function() {
+        localStorage.removeItem('apiKey'); // 從本地存儲中移除API金鑰
+        $("#api-key-input").val("");
+        $("#save-api-key").removeAttr("checked");
+        showApiKeyInput();
+        disableChat();
+    });
+// 當點擊帶有ID "submit"的元素（例如提交按鈕）時，執行以下函數
+
+let apiKey;  // 定义一个全局变量来存储API Key
+
+// 当页面加载完成时，从服务器获取API Key
+$(document).ready(function() {
+    fetchApiKeyFromServer();
+});
+
+function fetchApiKeyFromServer() {
+    $.ajax({
+        url: '/getApiKey',
+        method: 'GET',
+        success: function(data) {
+            if (data.apiKey) {
+                apiKey = data.apiKey;
+                console.log("API Key fetched successfully:", apiKey);
+            } else {
+                console.error("API Key not found in response.");
+            }
+        },
+        error: function(err) {
+            console.error("Error fetching API Key:", err);
+        }
+    });
+}
+
+$("#submit").click(function() {
+    if (!apiKey) {
+        console.error("API Key is not available yet. Please wait.");
+        return;  // 如果API Key还没有获取到，就返回，不继续执行下去
+    }
+
+    var promptText = $("#prompt").val(); // 獲取使用者輸入的提示文字
+    var voiceName = $("#voice-select").val(); // 獲取所選的語音樣式
+
+    var chatWindow = $("#chat-window");
+    chatWindow.append("<p class='chat-message'><span class='icon-box'><i class='fas fa-user'></i></span><strong></strong> " + promptText + "</p>");
+    var loadingIndicator = $("<p class='chat-message loading-message'><i class='fas fa-spinner fa-spin'></i> 載入中請稍候...</p>");
+    chatWindow.append(loadingIndicator);
+    
+    $.ajax({
+        url: '/api/ask',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            "prompt": promptText
+        }),
+        beforeSend: function(request) {
+            request.setRequestHeader("Authorization", apiKey);
+        },
+        success: function(data) {
+            if (data.error && data.error.includes("Invalid API key")) {
+                showError("Invalid API key. Please enter a valid key.");
+                showApiKeyInput();
+                disableChat();
+            } else if (data.error) {
+                showError(data.error);
+                enableChat();
+            } else {
+                var assistantReply = data.response;
+                var chatMessage = $("<p class='chat-message assistant-message'><span class='icon-bot'><i class='fa-solid fa-cloud'></i></i><strong></strong></span><span class='message-text'></span></p>");
+                chatWindow.append(chatMessage);
+
+                var i = 0;
+                var displayAssistantReply = setInterval(function() {
+                    if (i < assistantReply.length) {
+                        var partialReply = assistantReply.slice(0, i + 1);
+                        chatMessage.find('.message-text').text(partialReply);
+                        chatWindow.scrollTop(chatWindow[0].scrollHeight);
+                        i++;
+                    } else {
+                        clearInterval(displayAssistantReply);
+                        synthesizeTextToSpeech(assistantReply, voiceName);
+                        enableChat();
+                    }
+                }, 1);
+            }
+        },
+        complete: function() {
+            loadingIndicator.hide();
+        }
+    });
+});
+//API 金鑰已隱藏--------------------------------------------------------------------------------------------------------------------------- -->
+
+    // 將 click 事件附加到所有帶有 "speaker-icon" 類別的 speaker 圖示
+    $(document).on("click", ".speaker-icon", playAssistantAudio);
+           // 顯示 API 金鑰輸入欄
+            function showApiKeyInput() {
+                $("#api-key-container").show();
+                $("#submit").attr("disabled", true);
+            }
+            // 隱藏 API 金鑰輸入欄
+
+            function hideApiKeyInput() {
+                $("#api-key-container").hide();
+                $("#submit").removeAttr("disabled");
+            }
+            // 啟用聊天輸入和提交按鈕
+            function enableChat() {
+                $("#prompt").removeAttr("disabled");
+                $("#submit").removeAttr("disabled");
+            }
+            // 禁用聊天輸入和提交按鈕
+            function disableChat() {
+                $("#prompt").attr("disabled", true);
+                $("#submit").attr("disabled", true);
+            }
+            // 顯示錯誤訊息
+            function showError(message) {
+                var chatWindow = $("#chat-window");
+                chatWindow.append("<p class='chat-message error-message'><i class='fas fa-exclamation-circle'></i> <strong>錯誤訊息:</strong> " + message + "</p>");
+                chatWindow.scrollTop(chatWindow[0].scrollHeight);
+        }
+        });
+    </script>
+
+
+<!-- 語音轉文本--------------------------------------------------------------------------------------------------------------------------- -->
+
+<script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+
+<script>
+window.onload = function() {
+    var recognizer;
+
+    function initializeRecognizer(apiKey, region) {
+        const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(apiKey, region);
+        speechConfig.speechRecognitionLanguage = "zh-TW";
+        const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+        recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
+    }
+
+    fetch('/getSpeechConfig')
+        .then(res => res.json())
+        .then(data => {
+            const region = data.region;
+            const apiKey = data.apiKey;
+
+            initializeRecognizer(apiKey, region);
+
+            document.querySelector('#start').addEventListener('click', startSpeechRecognition);
+            document.querySelector('#stop').addEventListener('click', stopSpeechRecognition);
+
+            console.log("Event listeners attached successfully!");
+
+        })
+        .catch(err => {
+            console.error("Error fetching speech config: ", err);
+        });
+
+    function startSpeechRecognition() {
+        try {
+            if(!recognizer) {
+                fetch('/getSpeechConfig')
+                .then(res => res.json())
+                .then(data => {
+                    initializeRecognizer(data.apiKey, data.region);
+                    actualStart();
+                });
+            } else {
+                actualStart();
+            }
+        } catch (error) {
+            console.error("Error during speech recognition: ", error);
+        }
+    }
+
+    function actualStart() {
+        document.querySelector('#result').innerText = '開始語音辨識';
+        recognizer.startContinuousRecognitionAsync();
+
+        recognizer.recognized = (s, e) => {
+            console.log("Recognition result: ", e.result.text);
+            if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+                document.querySelector('#result').innerText = '辨識結果：' + e.result.text;
+                document.querySelector('#prompt').value = e.result.text;
+            }
+        };
+
+        recognizer.canceled = (s, e) => {
+            console.error("Recognition cancelled: ", e);
+            document.querySelector('#result').innerText = '語音識別期間發生錯誤';
+        };
+    }
+
+    function stopSpeechRecognition() {
+        if (recognizer) {
+            recognizer.stopContinuousRecognitionAsync(() => {
+                document.querySelector('#result').innerText = '已停止語音識別';
+                // 我們不關閉recognizer
+            }, (error) => {
+                console.error("Error stopping the recognizer: ", error);
+            });
+        }
+    }
+}
+</script>
+
+
+</body>
+</html>
