@@ -1,8 +1,0 @@
-@font-face {
-    font-family: 'Traditional Chinese Font';
-    src: url('/static/fonts/your_font.ttf'); /* 替換成您自己的字體文件路徑 */
-}
-
-body {
-    font-family: 'Traditional Chinese Font', Arial, sans-serif;
-}
